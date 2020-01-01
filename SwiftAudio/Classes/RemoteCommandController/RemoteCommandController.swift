@@ -27,11 +27,20 @@ public class RemoteCommandController {
      */
     public init(remoteCommandCenter: MPRemoteCommandCenter = MPRemoteCommandCenter.shared()) {
         self.center = remoteCommandCenter
+        self.disable(commands: RemoteCommand.all())
     }
     
     internal func enable(commands: [RemoteCommand]) {
-        self.disable(commands: RemoteCommand.all())
-        commands.forEach { (command) in
+        let commendsShouldBeDisabled = RemoteCommand.all().filter { remoteCommand in
+            commandTargetPointers[getCommandId(command: remoteCommand)] != nil && !commands.contains{ command in
+                getCommandId(command: command) == getCommandId(command: remoteCommand)
+            }
+        }
+        let commendsShouldBeEnabled = commands.filter { command in
+            commandTargetPointers[getCommandId(command: command)] == nil
+        }
+        self.disable(commands: commendsShouldBeDisabled)
+        commendsShouldBeEnabled.forEach { (command) in
             self.enable(command: command)
         }
     }
@@ -51,6 +60,24 @@ public class RemoteCommandController {
         center[keyPath: command.commandKeyPath].isEnabled = false
         center[keyPath: command.commandKeyPath].removeTarget(commandTargetPointers[command.id])
         commandTargetPointers.removeValue(forKey: command.id)
+    }
+
+    private func getCommandId(command: RemoteCommand) -> String {
+        switch command {
+        case .play: return "Play"
+        case .pause: return "Pause"
+        case .stop: return "Stop"
+        case .togglePlayPause: return "TogglePlayPause"
+        case .next: return "NextTrackCommand"
+        case .previous: return "PreviousTrack"
+        case .changePlaybackPosition: return "ChangePlaybackPosition"
+        case .skipForward(_): return "SkipForward"
+        case .skipBackward(_): return "SkipBackward"
+        case .like(_, _, _): return "Like"
+        case .dislike(_, _, _): return "Dislike"
+        case .bookmark(_, _, _): return "Bookmark"
+        default: return ""
+        }
     }
     
     private func enable(command: RemoteCommand) {
